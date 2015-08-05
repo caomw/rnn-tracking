@@ -26,7 +26,7 @@ cmd:text('Train a character-level language model')
 cmd:text()
 cmd:text('Options')
 -- data
-cmd:option('-data_dir','data/kitti','data directory. Should contain the file input.txt with input data') -- !!ADJUST THIS DIRECTORY!!
+cmd:option('-data_dir','data/kitti','data directory. Should contain the file input.txt with input data')
 -- model params
 cmd:option('-rnn_size', 128, 'size of LSTM internal state')
 cmd:option('-num_layers', 2, 'number of layers in the LSTM')
@@ -37,8 +37,8 @@ cmd:option('-learning_rate_decay',0.97,'learning rate decay')
 cmd:option('-learning_rate_decay_after',10,'in number of epochs, when to start decaying the learning rate')
 cmd:option('-decay_rate',0.95,'decay rate for rmsprop')
 cmd:option('-dropout',0,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
-cmd:option('-seq_length',50,'number of timesteps to unroll for')													-- !!WRITE CODE TO FIND AUTOMATICALLY!!
-cmd:option('-batch_size',1,'number of sequences to train on in parallel')
+cmd:option('-seq_length',50,'number of timesteps to unroll for')					-- !!FIND A WAY TO HANDLE THIS BETTER!!
+cmd:option('-batch_size',50,'number of sequences to train on in parallel')
 cmd:option('-max_epochs',50,'number of full passes through the training data')
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-train_frac',0.95,'fraction of data that goes into train set')
@@ -53,7 +53,7 @@ cmd:option('-checkpoint_dir', 'cv', 'output directory where checkpoints get writ
 cmd:option('-savefile','lstm','filename to autosave the checkpont to. Will be inside checkpoint_dir/')
 -- GPU/CPU
 cmd:option('-gpuid',-1,'which gpu to use. -1 = use CPU')
-cmd:option('-input_size',4,'size of RNN input: default set to 4 for x, y, width, length of defining bounding box')	-- Shawn Rigdon 6/24/15
+cmd:option('-input_size',4,'size of RNN input: default set to 4 for left, right, top, and bottom pixel coords')	-- Shawn Rigdon 6/24/15
 cmd:text()
 
 -- parse input params
@@ -119,8 +119,9 @@ else
     --protos.rnn = LSTM.lstm(vocab_size, opt.rnn_size, opt.num_layers, opt.dropout)	--vocab_size is only used to set the input size of the rnn
     protos.rnn = LSTM.lstm(opt.input_size, opt.rnn_size, opt.num_layers, opt.dropout)
 	--protos.criterion = nn.ClassNLLCriterion()
-	protos.criterion = nn.MSECriterion()	--changed criterion because we are no longer doing a classification.  MSE will allow us to improve the average distance
-	-- between the output bouding box coordinates and the following input coordinates.
+	protos.criterion = nn.MSECriterion()
+	--[[changed criterion because we are no longer doing a classification.  MSE will allow us to improve the average distance
+		between the output bouding box coordinates and the following input coordinates.]]
 end
 
 -- the initial state of the cell/hidden states
@@ -244,7 +245,7 @@ function feval(x)
     -- transfer final state to initial state (BPTT)
     init_state_global = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
     -- clip gradient element-wise
-    grad_params:clamp(-opt.grad_clip, opt.grad_clip)
+    --grad_params:clamp(-opt.grad_clip, opt.grad_clip)
     return loss, grad_params
 end
 

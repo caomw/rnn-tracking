@@ -7,7 +7,6 @@
 
 local MinibatchLoader = {}
 MinibatchLoader.__index = MinibatchLoader
-	-- I don't quite understand this line.  Apparently it sets the lookup table for class MinibatchLoader - Shawn Rigdon
 
 function MinibatchLoader.create(data_dir, batch_size, seq_length, split_fractions, input_size)
     -- split_fractions is e.g. {0.9, 0.05, 0.05}
@@ -60,8 +59,9 @@ function MinibatchLoader.create(data_dir, batch_size, seq_length, split_fraction
         print('cutting off end of data so that the batches/sequences divide evenly')
         --[[data = data:sub(1, batch_size * seq_length
                     * math.floor(len / (batch_size * seq_length)))]]
-		data = data:sub(1, -1, 1, batch_size * seq_length
+		tmp = data:sub(1, -1, 1, batch_size * seq_length
                     * math.floor(len / (batch_size * seq_length)))
+		data = tmp:clone()	--necessary to avoid contiguous tensor assertion error in view
 		--[[uncomment if data is a table
 		data = { unpack(data, 1, batch_size * seq_length
                     * math.floor(len / (batch_size * seq_length)) }]]
@@ -88,7 +88,7 @@ function MinibatchLoader.create(data_dir, batch_size, seq_length, split_fraction
 	--[[uncomment if data is a table
 	local ydata = { unpack(data,2,#data) }
 	table.insert(ydata,data[1])]]
-
+	
     --self.x_batches = data:view(batch_size, -1):split(seq_length, 2)  -- #rows = #batches
 	self.x_batches = data:view(input_size, batch_size, -1):split(seq_length, 3)  -- #rows = #batches (3 for split along 3rd dim)
     self.nbatches = #self.x_batches
@@ -186,7 +186,7 @@ function MinibatchLoader.text_to_tensor(in_textfile, --[[out_vocabfile,]] out_da
 		f = #frames		-- frame number
 		if f > 1 then
 			--define end of sequence as a break in the frame count (end of object in sequence)
-			if frames[f][1] + 0 ~= frames[f-1][1] + 1 then	--add zero to force char to double conversion
+			if frames[f][3] + 0 ~= frames[f-1][3] + 1 then	--add zero to force char to double conversion
 				
 				if f < seq_length then	-- discard that object's data
 					frames = {}
@@ -203,7 +203,7 @@ function MinibatchLoader.text_to_tensor(in_textfile, --[[out_vocabfile,]] out_da
 		end
 
 	end
-	
+
 	file:clearError()	--clear error generated when last readString is performed	
 	file:close()
 
@@ -254,7 +254,7 @@ function MinibatchLoader.text_to_tensor(in_textfile, --[[out_vocabfile,]] out_da
 	-- reformat frame data into tensor
 	for obj=1, #objects do
 		for f,fData in ipairs(objects[obj]) do
-			data[{{},(obj-1)*seq_length + f}] = torch.Tensor({unpack(fData,7,10)})
+			data[{{},(obj-1)*seq_length + f}] = torch.Tensor({unpack(fData,9,12)})
 		end
 	end	
 
